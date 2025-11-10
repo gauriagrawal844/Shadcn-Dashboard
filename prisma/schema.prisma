@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String
+  verificationToken String?  
+  emailVerified Boolean  @default(false)
+  otp            String?    
+  otpExpires     DateTime?  
+  createdAt DateTime @default(now())
+}
+
+/// Stores OTPs for verifying an email during signup before creating a User
+model EmailVerification {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  otp         String
+  otpExpires  DateTime
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+
+
+
+model Card {
+  id            String   @id @default(uuid())
+  heading       String   @unique
+  currentValue  Float
+  previousValue Float?
+  changePercent Float?
+  description   String?
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+
+model Visitor {
+ id        Int      @id @default(autoincrement())
+  date     DateTime
+  desktop  Int
+  mobile   Int
+  createdAt DateTime @default(now())
+}
+
+
+model TableEntry {
+  id        String     @id @default(uuid())
+  header    String
+  type      String
+  status    String
+  target    Int
+  limit     Int
+  reviewer  String?
+  createdAt DateTime @default(now())
+}
