@@ -95,13 +95,26 @@ export function SignupForm(props) {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/signup", {
+      // First, create the user account
+      const signupRes = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
+        credentials: 'include' // Important for cookies
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Signup failed");
+      
+      const data = await signupRes.json();
+      
+      if (!signupRes.ok) {
+        throw new Error(data.error || "Signup failed");
+      }
+      
+      // Store the token in localStorage for client-side auth
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      
+      // Redirect to dashboard
       router.push("/dashboard");
     } catch (e) {
       setErr(e.message);
