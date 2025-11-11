@@ -92,9 +92,6 @@ export function LoginForm({
                 <Button type="submit" disabled={loading}>
                   {loading ? "Sending OTP..." : "Login"}
                 </Button>
-                <Button variant="outline" type="button">
-                  Login with Google
-                </Button>
                 <FieldDescription className="text-center">
                   Don&apos;t have an account? <a href="/signup">Sign up</a>
                 </FieldDescription>

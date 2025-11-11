@@ -29,9 +29,6 @@ model EmailVerification {
   createdAt   DateTime @default(now())
 }
 
-
-
-
 model Card {
   id            String   @id @default(uuid())
   heading       String   @unique
@@ -55,7 +52,7 @@ model Visitor {
 
 
 model TableEntry {
-  id        String     @id @default(uuid())
+  id        Int      @id @default(autoincrement())
   header    String
   type      String
   status    String

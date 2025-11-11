@@ -6,7 +6,7 @@ export async function POST(req) {
     const { email} = await req.json();
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return Response.json({ error: "User not found" }, { status: 404 });
+    if (!user) return Response.json({ error: "User is not Registered! Please Login..." }, { status: 404 });
 
     if (!user.emailVerified) {
       return Response.json({ error: "Verify your email first" }, { status: 400 });

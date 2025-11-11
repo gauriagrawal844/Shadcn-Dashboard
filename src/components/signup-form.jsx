@@ -22,6 +22,7 @@ export function SignupForm(props) {
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
@@ -52,6 +53,7 @@ export function SignupForm(props) {
     setErr("");
     setVerifyMsg("");
     if (!form.email) return setErr("Enter email first");
+    setVerifying(true);
     try {
       const res = await fetch("/api/send-signup-otp", {
         method: "POST",
@@ -64,6 +66,8 @@ export function SignupForm(props) {
       setVerifyMsg("OTP sent to your email");
     } catch (e) {
       setErr(e.message);
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -166,10 +170,10 @@ export function SignupForm(props) {
                 <Button
                   type="button"
                   onClick={sendSignupOtp}
-                  disabled={emailVerified}
+                  disabled={emailVerified || verifying}
                   className="shrink-0"
                 >
-                  {emailVerified ? "Verified" : "Verify Email"}
+                  {verifying ? "Sending..." : emailVerified ? "Verified" : "Verify Email"}
                 </Button>
               </div>
 
@@ -190,11 +194,6 @@ export function SignupForm(props) {
               {verifyMsg && (
                 <p className="text-green-600 text-sm mt-1">{verifyMsg}</p>
               )}
-
-              <FieldDescription>
-                We'll use this to contact you. We will not share your email with
-                anyone else.
-              </FieldDescription>
             </Field>
 
             {/* Phone */}
@@ -208,10 +207,6 @@ export function SignupForm(props) {
                 value={form.phone}
                 onChange={onChange}
               />
-              <FieldDescription>
-                We'll use this to contact you. We will not share your phone
-                number.
-              </FieldDescription>
             </Field>
 
             {/* Error message */}
@@ -223,12 +218,9 @@ export function SignupForm(props) {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Creating account..." : "Create Account"}
                 </Button>
-                <Button variant="outline" type="button" className="w-full">
-                  Sign up with Google
-                </Button>
                 <p className="text-center text-sm">
                   Already have an account?{" "}
-                  <a href="/login" className="text-blue-600 underline">
+                  <a href="/login" className="text-gray-600 underline">
                     Sign in
                   </a>
                 </p>

@@ -69,7 +69,7 @@ export function NavMain({ items }) {
                 <circle cx="17" cy="17" r="3" />
                 <circle cx="7" cy="7" r="3" />
               </svg>
-              <span>Edit Card</span>
+              <span>Edit Cards</span>
             </a>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -98,7 +98,7 @@ export function NavMain({ items }) {
                 <circle cx="17" cy="17" r="3" />
                 <circle cx="7" cy="7" r="3" />
               </svg>
-              <span>Add Data Points</span>
+              <span>Add Graph Data Points</span>
             </a>
           </SidebarMenuButton>
         </SidebarMenuItem>
