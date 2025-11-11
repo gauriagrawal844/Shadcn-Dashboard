@@ -24,6 +24,8 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  SidebarProvider,
+  SidebarTrigger
 } from "@/components/ui/sidebar"
 
 // This is sample data.

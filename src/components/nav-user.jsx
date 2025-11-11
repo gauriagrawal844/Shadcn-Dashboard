@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from 'next/navigation';
 import {
   BadgeCheck,
   Bell,
@@ -7,7 +8,8 @@ import {
   CreditCard,
   LogOut,
   Sparkles,
-} from "lucide-react"
+} from "lucide-react";
+import { toast } from 'sonner';
 
 import {
   Avatar,
@@ -33,7 +35,31 @@ import {
 export function NavUser({
   user
 }) {
-  const { isMobile } = useSidebar()
+  const { isMobile } = useSidebar();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        // Clear any client-side state if needed
+        localStorage.removeItem('token');
+        
+        // Redirect to login page
+        window.location.href = '/login';
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to log out');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error(error.message || 'Failed to log out');
+    }
+  };
 
   return (
     <SidebarMenu>
@@ -94,9 +120,9 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <LogOut />
-              Log out
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

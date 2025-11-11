@@ -1,6 +1,10 @@
+'use client';
+
 import { Poppins } from "next/font/google";
 import "./globals.css";
+import { usePathname } from 'next/navigation';
 import DashboardLayout from "@/components/dashboard-layout";
+import AuthProvider from "@/components/auth-provider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -9,21 +13,32 @@ const poppins = Poppins({
   display: "swap",
 });
 
-export const metadata = {
-  title: "Shadcn Dashboard",
-  description: "Shadcn Dashboard",
-  icons: {
-    icon: "/favicon.ico",
-  },
-};
-
 export default function RootLayout({ children }) {
+  const pathname = usePathname();
+  const isAuthPage = pathname === '/login' || 
+                    pathname === '/signup' ||
+                    pathname === '/otp';
+  
+  // For auth pages, we don't need the dashboard layout
+  if (isAuthPage) {
+    return (
+      <html lang="en">
+        <body className={`${poppins.variable} antialiased min-h-screen bg-gray-50`}>
+          {children}
+        </body>
+      </html>
+    );
+  }
+
+  // For all other pages, use the dashboard layout with auth protection
   return (
     <html lang="en">
       <body className={`${poppins.variable} antialiased`}>
-        <DashboardLayout>
-          {children}
-        </DashboardLayout>
+        <AuthProvider>
+          <DashboardLayout>
+            {children}
+          </DashboardLayout>
+        </AuthProvider>
       </body>
     </html>
   );

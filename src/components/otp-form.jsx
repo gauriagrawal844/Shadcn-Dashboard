@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,49 +30,42 @@ export default function VerifyOtpPage() {
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [redirecting, setRedirecting] = useState(false);
   const router = useRouter();
 
   // Handle resend OTP
   const handleResendOtp = async () => {
-    if (resendCooldown > 0) return;
-    
     setErr("");
+    setSuccess("");
     setLoading(true);
-    
+
     try {
       const res = await fetch("/api/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to resend OTP");
-      
-      // Start cooldown timer (60 seconds)
-      setResendCooldown(60);
-      const timer = setInterval(() => {
-        setResendCooldown((prev) => {
-          if (prev <= 1) clearInterval(timer);
-          return prev > 0 ? prev - 1 : 0;
-        });
-      }, 1000);
-      
-      setSuccess("New OTP has been sent to your email");
-    } catch (e) {
-      setErr(e.message);
+
+      if (!res.ok) throw new Error(data.error || "Failed to resend OTP.");
+
+      setSuccess("A new OTP has been sent to your email.");
+    } catch (error) {
+      console.error("Error resending OTP:", error);
+      setErr(error.message || "Failed to resend OTP.");
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Handle Verify OTP
   const onSubmit = async (e) => {
     e.preventDefault();
     if (!otp) return setErr("OTP required");
     if (otp.length !== 6) return setErr("Please enter a 6-digit OTP");
-    
+
     setErr("");
     setSuccess("");
     setLoading(true);
@@ -82,22 +76,26 @@ export default function VerifyOtpPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
       });
-      
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Verification failed");
 
-      setIsVerified(true);
-      setSuccess("OTP verified successfully! Redirecting...");
-      
-      // Store token and redirect after a short delay
-      localStorage.setItem("token", data.token);
+      // Store JWT token (optional — since cookie also stores it)
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+
+      setSuccess("✅ OTP verified successfully! Redirecting to your dashboard...");
+      setRedirecting(true);
+
+      // ⏳ Redirect after short delay (for UX)
       setTimeout(() => {
         const dest = next && next.startsWith("/") ? next : "/dashboard";
         router.push(dest);
-      }, 1500);
-      
-    } catch (e) {
-      setErr(e.message);
+      }, 2000);
+    } catch (error) {
+      console.error("Verification error:", error);
+      setErr(error.message);
     } finally {
       setLoading(false);
     }
@@ -106,12 +104,8 @@ export default function VerifyOtpPage() {
   return (
       <Card>
         <CardHeader>
-          <CardTitle>
-            Enter verification code
-          </CardTitle>
-          <CardDescription >
-            We sent a 6-digit code to your email.
-          </CardDescription>
+          <CardTitle>Enter verification code</CardTitle>
+          <CardDescription>We sent a 6-digit code to your email.</CardDescription>
         </CardHeader>
 
         <CardContent>
@@ -119,6 +113,7 @@ export default function VerifyOtpPage() {
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="otp">Verification code</FieldLabel>
+
                 <InputOTP
                   id="otp"
                   maxLength={6}
@@ -126,49 +121,40 @@ export default function VerifyOtpPage() {
                   onChange={(val) => setOtp(val)}
                   required
                 >
-             <InputOTPGroup className="gap-2.5 *:data-[slot=input-otp-slot]:rounded-md *:data-[slot=input-otp-slot]:border">
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
+                  <InputOTPGroup className="gap-2.5 *:data-[slot=input-otp-slot]:rounded-md *:data-[slot=input-otp-slot]:border">
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <InputOTPSlot key={i} index={i} />
+                    ))}
                   </InputOTPGroup>
                 </InputOTP>
 
-                {err && (
-                  <p className="text-red-600 text-sm mt-1">{err}</p>
-                )}
+                {err && <p className="text-red-600 text-sm mt-2">{err}</p>}
+                {success && <p className="text-green-600 text-sm mt-2">{success}</p>}
 
-                <FieldDescription>
-                  Enter the 6-digit code sent to {email}.
-                </FieldDescription>
-                {success && (
-                  <p className="text-green-600 text-sm mt-2">{success}</p>
-                )}
+                <FieldDescription>Enter the 6-digit code sent to {email}.</FieldDescription>
               </Field>
 
-              <FieldGroup>
+              <FieldGroup className="mt-4">
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || redirecting}
+                  className="w-full"
                 >
                   {loading ? "Verifying..." : "Verify"}
                 </Button>
-               <FieldDescription className="text-center">
-                  {resendCooldown > 0 ? (
-                    <span>Resend OTP in {resendCooldown}s</span>
-                  ) : (
-                    <button 
-                      type="button" 
-                      onClick={handleResendOtp}
-                      className="text-blue-600 hover:underline focus:outline-none"
-                      disabled={loading || isVerified}
-                    >
-                      Resend OTP
-                    </button>
-                  )}
-                </FieldDescription> 
+
+                <div className="mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={loading}
+                    className={`text-sm font-medium text-primary hover:underline focus:outline-none ${
+                      loading ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    {loading ? "Sending..." : "Resend OTP"}
+                  </button>
+                </div>
               </FieldGroup>
             </FieldGroup>
           </form>
