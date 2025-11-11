@@ -11,20 +11,27 @@ const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me', {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        const data = await response.json();
+        // Check for token in localStorage first (for backward compatibility)
+        const localToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         
-        if (!data.isAuthenticated) {
-          router.replace('/login');
-          return;
+        // If no token in localStorage, check cookies via API
+        if (!localToken) {
+          const response = await fetch('/api/auth/me', {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const data = await response.json();
+          
+          if (!data.isAuthenticated) {
+            router.replace('/login');
+            return;
+          }
         }
         
+        // If we get here, either we have a local token or the API confirmed auth
         setIsAuthenticated(true);
       } catch (error) {
         console.error('Auth check failed:', error);

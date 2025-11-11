@@ -25,21 +25,7 @@ export default function DashboardLayout({ children }) {
             <SidebarTrigger />
             <div className="flex gap-3 items-center mr-[10px] cursor-pointer">
               <Bell size={20} color="#1A1D1F" />
-              <DropdownMenu>
-              <DropdownMenuTrigger>
-                <div className="flex gap-[10px] items-start" style={{display:'flex', gap: '5px'}}>
-                  <div>
-                    <CircleUserRound size={20} color="#1A1D1F" />
-                  </div>
-                  <div>
-                    <ChevronDown size={18} color="#1A1D1F" />
-                  </div>
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="ml-[-20px] mr-[20px]">
-                  <DropdownMenuLabel className="cursor-pointer">Log Out</DropdownMenuLabel>
-                </DropdownMenuContent>
-              </DropdownMenu>
+             
             </div>
           </div>
         )}

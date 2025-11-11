@@ -80,9 +80,10 @@ export default function VerifyOtpPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Verification failed");
 
-      // Store JWT token (optional — since cookie also stores it)
+      // Store JWT token in both localStorage and ensure it's set in cookies
       if (data.token) {
         localStorage.setItem("token", data.token);
+        // The token should also be set in an HTTP-only cookie by the API
       }
 
       setSuccess("✅ OTP verified successfully! Redirecting to your dashboard...");
