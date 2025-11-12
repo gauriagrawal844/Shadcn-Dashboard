@@ -217,8 +217,8 @@ export default function UpdateCardsPage() {
                   <span className="text-base text-gray-500 font-medium">
                     {card.heading}
                   </span>
-                  <div className="flex items-center space-x-1 bg-transparent text-gray-800 text-sm font-medium px-2 py-1 rounded-full border border-gray-300">
-                    <TrendChartIcon className={`w-4 h-4 ${isPositive ? 'text-green-500' : 'text-red-500'}`} isPositive={isPositive} />
+                  <div className="flex items-center space-x-1 bg-transparent text-gray-500 text-sm font-medium px-2 py-1 rounded-full border border-gray-300">
+                    <TrendChartIcon className={`w-4 h-4`} isPositive={isPositive} />
                     <span className="text-xs">
                       {changePercent > 0 ? "+" : ""}
                       {formatNumber(changePercent, card.heading, true)}

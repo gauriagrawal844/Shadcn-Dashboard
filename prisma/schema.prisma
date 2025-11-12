@@ -8,16 +8,17 @@ datasource db {
 }
 
 model User {
-  id                String   @id @default(uuid())
+  id                String    @id @default(uuid())
   name              String
-  email             String   @unique
+  email             String    @unique
   phone             String
   verificationToken String?  
-  emailVerified     Boolean  @default(false)
+  emailVerified     Boolean   @default(false)
   otp               String?    
   otpExpires        DateTime?  
-  cards             Card[]   // Add this line to establish the one-to-many relationship
-  createdAt         DateTime @default(now())
+  cards             Card[]    // One-to-many relation with Card
+  visitors          Visitor[] // One-to-many relation with Visitor
+  createdAt         DateTime  @default(now())
 }
 
 /// Stores OTPs for verifying an email during signup before creating a User
@@ -48,11 +49,15 @@ model Card {
 
 
 model Visitor {
- id        Int      @id @default(autoincrement())
-  date     DateTime
-  desktop  Int
-  mobile   Int
+  id        Int      @id @default(autoincrement())
+  date      DateTime
+  desktop   Int
+  mobile    Int
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  
+  @@unique([userId, date])  // Ensures a user can't have duplicate dates
 }
 
 

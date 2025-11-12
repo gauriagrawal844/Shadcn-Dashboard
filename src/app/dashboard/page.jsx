@@ -312,7 +312,7 @@ export default function DashboardPage() {
                   </span>
 
                   {/* Change Badge */}
-                  <div className={`flex items-center space-x-1 bg-transparent text-gray-800 text-sm font-medium px-2 py-1 rounded-full border ${isPositive ? 'border-green-200 text-green-700' : 'border-red-200 text-red-700'}`}>
+                  <div className="flex items-center space-x-1 bg-transparent text-gray-500 text-sm font-medium px-2 py-1 rounded-full border border-gray-300">
                     <TrendChartIcon className="w-4 h-4" isPositive={isPositive} />
                       <span className="text-xs">
                         {card.changePercent > 0 ? '+' : ''}

@@ -2,11 +2,18 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function getVisitors() {
+export async function getVisitors(userId) {
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+
   try {
     const visitors = await prisma.visitor.findMany({
+      where: {
+        userId: userId,
+      },
       orderBy: {
-        date: 'asc',
+        createdAt: 'desc',
       },
     });
     return visitors;
@@ -17,12 +24,19 @@ export async function getVisitors() {
 }
 
 export async function addVisitor(data) {
-  try {
-    const { date, desktop, mobile } = data;
-    
-    // Check if data for this date already exists
+  const { date, desktop, mobile, userId } = data;
+  
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+
+  try {    
+    // Check if data for this date and user already exists
     const existing = await prisma.visitor.findFirst({
-      where: { date: new Date(date) },
+      where: { 
+        date: new Date(date),
+        userId: userId
+      },
     });
 
     let result;
@@ -42,6 +56,7 @@ export async function addVisitor(data) {
           date: new Date(date),
           desktop: parseInt(desktop),
           mobile: parseInt(mobile),
+          userId: userId
         },
       });
     }
@@ -53,19 +68,43 @@ export async function addVisitor(data) {
   }
 }
 
-export async function removeVisitor(date) {
+export async function removeVisitor(date, userId) {
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+  if (!date) {
+    throw new Error('Date is required');
+  }
+
   try {
-    // First find the record by date
-    const record = await prisma.visitor.findFirst({
-      where: { date: new Date(date) },
+    // Parse the date and create start/end of day for range query
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    // Find the visitor record for the given date and user
+    const existing = await prisma.visitor.findFirst({
+      where: { 
+        date: {
+          gte: startOfDay,
+          lte: endOfDay
+        },
+        userId: userId
+      },
     });
 
-    if (record) {
-      await prisma.visitor.delete({
-        where: { id: record.id },
-      });
+    if (!existing) {
+      throw new Error('No visitor data found for the specified date');
     }
-    
+
+    // Delete the visitor record
+    await prisma.visitor.delete({
+      where: { id: existing.id },
+    });
+
     return { success: true };
   } catch (error) {
     console.error('Error removing visitor data:', error);

@@ -18,13 +18,28 @@ export default function ChartDataPage() {
   // Fetch data from API
   const fetchData = async () => {
     try {
-      const response = await fetch('/api/visitors');
-      if (!response.ok) throw new Error('Failed to fetch data');
+      setIsLoading(true);
+      const response = await fetch('/api/visitors', {
+        credentials: 'include' // Include cookies for authentication
+      });
+      
+      if (response.status === 401) {
+        // Handle unauthorized (user not logged in)
+        setChartData([]);
+        toast.error('Please log in to view chart data');
+        return;
+      }
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch data');
+      }
+      
       const data = await response.json();
       setChartData(data);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load chart data');
+      toast.error(error.message || 'Failed to load chart data');
+      setChartData([]);
     } finally {
       setIsLoading(false);
     }
@@ -58,10 +73,14 @@ export default function ChartDataPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(newData),
       });
 
-      if (!response.ok) throw new Error('Failed to save data');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save data');
+      }
       
       // Refresh data
       await fetchData();
@@ -72,17 +91,21 @@ export default function ChartDataPage() {
       toast.success('Data point saved successfully!');
     } catch (error) {
       console.error('Error saving data:', error);
-      toast.error('Failed to save data');
+      toast.error(error.message || 'Failed to save data');
     }
   };
 
   const removeDataPoint = async (id) => {
     try {
-      const response = await fetch(`/api/visitors/${id}`, {
+      const response = await fetch(`/api/visitors?id=${id}`, {
         method: 'DELETE',
+        credentials: 'include', // Include cookies for authentication
       });
 
-      if (!response.ok) throw new Error('Failed to delete data');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete data');
+      }
       
       // Refresh data
       await fetchData();
@@ -90,7 +113,7 @@ export default function ChartDataPage() {
       toast.success('Data point removed');
     } catch (error) {
       console.error('Error removing data:', error);
-      toast.error('Failed to remove data');
+      toast.error(error.message || 'Failed to remove data');
     }
   };
 
