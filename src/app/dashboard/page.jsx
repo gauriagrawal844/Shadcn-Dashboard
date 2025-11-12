@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight, ArrowDownRight, Plus, Table, AlertCircle } from "lucide-react";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ChartAreaInteractive from "@/components/chart";
 import TableInfo from "@/components/table-info";
 import { toast } from "sonner";
+import { jwtDecode } from "jwt-decode";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -16,6 +17,11 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Always show 4 card slots, empty or filled
+  const cardSlots = Array(4).fill(null).map((_, index) => ({
+    ...(cards[index] || { id: `empty-${index}`, isEmpty: true })
+  }));
 
   // Check authentication status
   const checkAuth = async () => {
@@ -51,38 +57,55 @@ export default function DashboardPage() {
   };
 
   const fetchCards = async () => {
+    console.log('Fetching cards...');
     if (!await checkAuth()) return;
 
     try {
       setIsLoading(true);
       setError(null);
       
-      // Get the token from localStorage
       const token = localStorage.getItem('token');
       if (!token) {
+        console.log('No token found, redirecting to login');
         router.push('/login');
         return;
       }
 
-      const response = await fetch("/api/cards", {
+      // Get user ID from token (client-side decoding)
+      const decoded = jwtDecode(token);
+      if (!decoded?.id) {
+        console.error('Invalid token: Missing user ID');
+        throw new Error('Invalid token: Missing user ID');
+      }
+      
+      console.log('Fetching cards for user ID:', decoded.id);
+      const response = await fetch(`/api/cards?userId=${decoded.id}`, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
         },
+        cache: 'no-store',
+        credentials: 'same-origin'
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          // If unauthorized, redirect to login
-          router.push('/login');
-          return;
-        }
-        throw new Error("Failed to fetch cards");
+        const error = await response.json().catch(() => ({}));
+        console.error('Error response from API:', error);
+        throw new Error(error.message || 'Failed to fetch cards');
       }
 
       const data = await response.json();
+      console.log('Fetched cards data:', data);
+      
       if (Array.isArray(data)) {
-        setCards(data);
+        // Ensure we only keep the first 4 cards if there are somehow more
+        const validCards = data.slice(0, 4);
+        console.log('Setting cards state with:', validCards);
+        setCards(validCards);
+      } else {
+        console.log('Invalid cards data, setting empty array');
+        setCards([]);
       }
     } catch (error) {
       console.error("Error fetching cards:", error);
@@ -98,16 +121,38 @@ export default function DashboardPage() {
     }
   };
 
+  // Memoize fetchCards to prevent unnecessary re-renders
+  const memoizedFetchCards = useCallback(() => {
+    console.log('Fetching cards...');
+    fetchCards();
+  }, []);
+  
+  // Debug: Log cards state changes
+  useEffect(() => {
+    console.log('Current cards state:', cards);
+    console.log('Cards count:', cards.length);
+    console.log('Should show button:', cards.length < 4);
+  }, [cards]);
+
   useEffect(() => {
     const init = async () => {
-      const isAuth = await checkAuth();
-      if (isAuth) {
-        await fetchCards();
-      }
+      console.log('Initial cards fetch');
+      await fetchCards();
     };
-
+    
     init();
-  }, [router]);
+    
+    // Set up an interval to refresh cards periodically
+    const intervalId = setInterval(() => {
+      console.log('Refreshing cards...');
+      fetchCards();
+    }, 30000); // Refresh every 30 seconds
+    
+    // Clean up the interval on component unmount
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [memoizedFetchCards]);
 
   const formatNumber = (num, heading, isChangePercent = false) => {
     if (num === null || num === undefined) return '0';
@@ -232,30 +277,43 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-10xl mb-8">
-
-        {cards.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {cards.map((card) => {
-              const isPositive = card.changePercent >= 0;
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {cardSlots.map((card, index) => {
+            if (card.isEmpty) {
               return (
-                // Custom Card UI: Soft gradient, strong shadow, and rounded corners
-                <div
-                  key={card.id}
-                  className="w-full p-6 bg-gradient-to-br from-white to-gray-100 rounded-xl border-1 border-gray-300 cursor-pointer"
+                <div 
+                  key={card.id} 
+                  className="w-full p-6 bg-white rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center min-h-[200px] cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => router.push('/createCard')}
                 >
+                  <div className="text-center">
+                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 mb-3">
+                      <Plus className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h3 className="text-sm font-medium text-gray-500">Add Card</h3>
+                    <p className="mt-1 text-xs text-gray-400">Click to create a new card</p>
+                  </div>
+                </div>
+              );
+            }
 
-                  {/* 1. Top Row: Title and Change Badge */}
-                  <div className="flex justify-between items-center pb-2">
-                    {/* Title (Total Revenue) */}
-                    <span className="text-base text-gray-500 font-medium">
-                      {card.heading}
-                    </span>
+            const isPositive = card.changePercent >= 0;
+            
+            return (
+              <div
+                key={card.id}
+                className="w-full p-6 bg-white rounded-xl border border-gray-200  bg-gradient-to-br from-white to-gray-100 "
+              >
+                {/* 1. Top Row: Title and Change Badge */}
+                <div className="flex justify-between items-center pb-2">
+                  {/* Title (Total Revenue) */}
+                  <span className="text-base text-gray-500 font-medium">
+                    {card.heading}
+                  </span>
 
-                    {/* Change Badge (+12.5%) - Uses static gray colors and border */}
-                    <div className={`flex items-center space-x-1 bg-transparent text-gray-800 text-sm font-medium px-2 py-1 rounded-full border border-gray-300`}>
-                      {/* TrendChartIcon handles the up/down orientation */}
-                      <TrendChartIcon className="w-4 h-4" isPositive={isPositive} />
+                  {/* Change Badge */}
+                  <div className={`flex items-center space-x-1 bg-transparent text-gray-800 text-sm font-medium px-2 py-1 rounded-full border ${isPositive ? 'border-green-200 text-green-700' : 'border-red-200 text-red-700'}`}>
+                    <TrendChartIcon className="w-4 h-4" isPositive={isPositive} />
                       <span className="text-xs">
                         {card.changePercent > 0 ? '+' : ''}
                         {formatNumber(card.changePercent, card.heading, true)}
@@ -295,27 +353,10 @@ export default function DashboardPage() {
                 </div>
               );
             })}
+            
+          
           </div>
-        ) : (
-          <div className="bg-white rounded-lg border border-dashed border-gray-300 p-12 text-center">
-            <svg
-              className="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-              />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No cards yet</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a new card.</p>
-          </div>
-        )}
+        
       </div>
       {/* External components were commented out due to resolution issues */}
       <ChartAreaInteractive />
