@@ -1,9 +1,24 @@
 import { PrismaClient } from '@prisma/client';
+import { verifyToken } from '@/lib/auth';
 const prisma = new PrismaClient();
 
-export async function GET() {
+async function getUserIdFromRequest(request) {
+  const token = request.cookies.get('token')?.value;
+  if (!token) return null;
+  
+  const decoded = await verifyToken(token);
+  return decoded?.id || null;
+}
+
+export async function GET(request) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const entries = await prisma.tableEntry.findMany({
+      where: { userId },
       orderBy: { createdAt: 'desc' },
     });
     return Response.json(entries);
@@ -15,6 +30,21 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify the user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    });
+
+    if (!user) {
+      return Response.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const body = await request.json();
     const { header, type, status, target, limit, reviewer } = body;
 
@@ -30,6 +60,7 @@ export async function POST(request) {
         target: Number(target),
         limit: Number(limit),
         reviewer: reviewer ? reviewer.trim() : null,
+        userId: user.id,
       },
     });
 
@@ -43,17 +74,29 @@ export async function POST(request) {
 // update
 export async function PUT(req) {
   try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { id, header, type, status, target, limit, reviewer } = body;
 
     const entryId = Number(id);
     if (!entryId || isNaN(entryId)) {
-      return NextResponse.json({ error: "Invalid or missing entry ID" }, { status: 400 });
+      return Response.json({ error: "Invalid or missing entry ID" }, { status: 400 });
     }
 
-    const existing = await prisma.tableEntry.findUnique({ where: { id: entryId } });
+    // Check if the entry exists and belongs to the user
+    const existing = await prisma.tableEntry.findFirst({
+      where: { 
+        id: entryId,
+        userId: userId 
+      }
+    });
+
     if (!existing) {
-      return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+      return Response.json({ error: "Entry not found or access denied" }, { status: 404 });
     }
 
     const updatedEntry = await prisma.tableEntry.update({
@@ -91,33 +134,66 @@ export async function PUT(req) {
 
 
 // Delete
-
 export async function DELETE(req) {
   try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { id } = body;
 
     console.log("🗑️ DELETE called with body ID:", id);
-
     if (!id) {
-      return Response.json({ error: "Missing ID in body" }, { status: 400 });
+      console.error("❌ No ID provided in DELETE request");
+      return Response.json(
+        { error: "Entry ID is required for deletion" },
+        { status: 400 }
+      );
     }
 
     const entryId = Number(id);
     if (isNaN(entryId)) {
-      return Response.json({ error: "Invalid ID format" }, { status: 400 });
+      console.error("❌ Invalid ID format:", id);
+      return Response.json(
+        { error: "Invalid entry ID format" },
+        { status: 400 }
+      );
     }
 
-    const existing = await prisma.tableEntry.findUnique({ where: { id: entryId } });
+    console.log("🔍 Looking for entry with ID:", entryId);
+    // Check if the entry exists and belongs to the user
+    const existing = await prisma.tableEntry.findFirst({
+      where: { 
+        id: entryId,
+        userId: userId 
+      }
+    });
+
     if (!existing) {
-      return Response.json({ error: "Entry not found" }, { status: 404 });
+      console.error("❌ Entry not found or access denied for ID:", entryId);
+      return Response.json(
+        { error: "Entry not found or access denied" },
+        { status: 404 }
+      );
     }
 
-    await prisma.tableEntry.delete({ where: { id: entryId } });
+    console.log("✅ Found entry, proceeding with deletion");
+    await prisma.tableEntry.delete({
+      where: { id: entryId },
+    });
 
-    return Response.json({ success: true, deletedId: entryId });
+    console.log("✅ Successfully deleted entry");
+    return Response.json(
+      { success: true, message: "Entry deleted successfully" },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error("Error deleting entry:", error);
-    return Response.json({ error: "Failed to delete entry" }, { status: 500 });
+    console.error("❌ Error in DELETE handler:", error);
+    return Response.json(
+      { error: error.message || "Failed to delete entry" },
+      { status: 500 }
+    );
   }
 }
